@@ -3,4 +3,4 @@ An attention-based model for analyzing gene regulatory events using HiC and epig
 
 
 ## Workflow
-![alt text](https://github.com/compbiolabucf/EpGAT/blob/main/EpGAT_overall.pdf)
+![alt text](https://github.com/compbiolabucf/EpGAT/blob/main/EpGAT_overall.PNG)
