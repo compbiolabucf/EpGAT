@@ -43,7 +43,8 @@ def get_mat_data(hic, data_root, cell_line, event, chrom_nm, indices, res, win_s
         
         counter += 1
         
-    print("\n\ntotal: ", counter)
+    # print("\n\ntotal: ", counter)
+    print('\n', win_start, ' to ', win_end)
     print('Matrix shape: ', contact_mat.shape)
     print('Matrix Density: ', 2*counter/(contact_mat.shape[0]*contact_mat.shape[0]))
     
@@ -56,7 +57,7 @@ def get_mat_data(hic, data_root, cell_line, event, chrom_nm, indices, res, win_s
     os.makedirs(f'{data_root}/{cell_line}/{event}_adj_mats/{chrom_nm}/', exist_ok=True)
     sparse.save_npz(f'{data_root}/{cell_line}/{event}_adj_mats/{chrom_nm}/{win_start}_{win_end}.npz', mat_comp)
 
-    print(win_start, ' to ', win_end, ':\n', contact_mat)
+    
     return adj_p
 
 
