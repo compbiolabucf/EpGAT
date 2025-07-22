@@ -19,4 +19,9 @@ The data directory before strating the training process, should look like follow
     - common_eps.csv (list of the common epigenetic signals' names)
     - <cell_line1_name>.hic ('HiC' file for cell_line1)
     - <cell_line2_name>.hic ('HiC' file for cell_line2)
-      
+
+## Training and testing the model
+All the parts of EpGAT model can be trained simultaneously using the python script- 'main.py'. The type of experiment being conducted- cross cell line or cross chromosome should be provided as an argument. Train and test cell lines or chromosomes to be experimented with, should be specified. A number of other options can be also utilized to modify the model parameters.
+```
+python main.py --experiment_type cross_cell_line
+```
