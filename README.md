@@ -20,7 +20,7 @@ The data directory before strating the training process, should look like follow
     - <cell_line1_name>.hic ('HiC' file for cell_line1)
     - <cell_line2_name>.hic ('HiC' file for cell_line2)
 
-The python scripts inside [this folder](preprocessing_data) folder can be used to prepare the data for application of the model.
+The python scripts inside [preprocess_data](https://github.com/compbiolabucf/EpGAT/tree/main/preprocess_data) folder can be used to prepare the data for application of the model.
 
 
 ## Training and testing the model
