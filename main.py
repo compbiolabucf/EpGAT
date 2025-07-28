@@ -19,6 +19,8 @@ def main():
     parser.add_argument('--event', type=str, default='as')
     parser.add_argument('--common_eps_file_name', type=str, default='common_eps')
     parser.add_argument('--root_directory', type=str, default='data')
+    parser.add_argument('--bp_resolution', type=int, default=200)
+    parser.add_argument('--window_length', type=int, default=6000000)
     parser.add_argument('--gpu', type=str, default='cuda:0')
     parser.add_argument('--epochs', type=int, default=10000)
     parser.add_argument('--num_heads', type=int, default=8)

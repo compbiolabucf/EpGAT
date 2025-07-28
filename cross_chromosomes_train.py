@@ -17,9 +17,8 @@ np.random.seed(seed)
 
 
 def cchrs_exp(args):
-
-    res = 200
-    window_size = 6000000
+    res = args.bp_resolution
+    window_size = args.window_length
 
     gpu = args.gpu
     epochs = args.epochs
