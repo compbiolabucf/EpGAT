@@ -1,6 +1,7 @@
 import argparse
 from cross_cell_lines_train import *
 from cross_chromosomes_train import *
+from cross_ccl_chr_train import *
 
 
 def main():
@@ -30,7 +31,7 @@ def main():
     parser.add_argument('--step_size', type=int, default=10)
     parser.add_argument('--gamma', type=float, default=0.7)
     parser.add_argument('--dropout', type=float, default=0.75)
-    parser.add_argument('--loss_hyperparameters', type=list, default=[0.7,1,10**4])
+    parser.add_argument('--loss_hyperparameters', type=float, nargs='+', default=[0.7,1,10**4])
 
     args = parser.parse_args()
     event_name = 'Alternative Splicing' if args.event=='as' else 'Alternative Polyadenylation'
@@ -42,6 +43,14 @@ def main():
         print(f'\n-------Cross chromosome exp, cell line: {args.cell_line}, event: {args.event}-------')
         print(f'train chrs: {args.train_chrs}, val chrs: {args.val_chrs}, test chrs: {args.test_chrs}')
         cchrs_exp(args)
+    elif args.exp_type == 'both':
+        print(f'\n-------Cross chromosome cross cell line exp, event: {args.event}-------')
+        print(f'train and val cell line: {args.train_cell_line}, test cell line: {args.test_cell_line}')
+        print(f'train chrs: {args.train_chrs}, val chrs: {args.val_chrs}, test chrs: {args.test_chrs}')
+        ccl_chrs_exp(args)
+    else:
+        print('Invalid experiment type')
+        print('Please choose between: \'cross_cell_line\', \'cross_chromosome\', \'both\'')
 
 if __name__=='__main__':
     main()

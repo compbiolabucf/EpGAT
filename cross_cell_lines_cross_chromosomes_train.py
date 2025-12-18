@@ -1,9 +1,8 @@
-import argparse
 import torch
 from torch.autograd import Variable
 from torch import nn, optim
-from sklearn.model_selection import train_test_split
 import os
+import math
 import glob
 import hicstraw
 import pandas as pd
@@ -17,7 +16,7 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 
 
-def ccl_exp(args):
+def ccl_chrs_exp(args):
     res = args.bp_resolution
     window_size = args.window_length
 
@@ -32,15 +31,20 @@ def ccl_exp(args):
     gamma = args.gamma
     dropout = args.dropout
 
-    chr = args.chromosome
-    train_cell_line = args.train_cell_line
-    test_cell_line = args.test_cell_line
+    tr_cell_line = args.train_cell_line
+    ts_cell_line = args.test_cell_line
     event = args.event
     l_hparams = args.loss_hyperparameters
+
+    tr_chrs = args.train_chrs
+    val_chrs = args.val_chrs
+    ts_chrs = args.test_chrs
 
     data_root = args.root_directory
     common_eps_fnm = f'{data_root}/{args.common_eps_file_name}.csv'
     common_eps = pd.read_csv(common_eps_fnm, index_col=0)['0']
+    n_features = common_eps.shape[0]
+
 
 
     def get_data(cell_line, n_chr, num_eps):
@@ -143,55 +147,73 @@ def ccl_exp(args):
         return curr_out
 
 
+    chrs = tr_chrs + val_chrs + ts_chrs
+
+    all_mats = {}
+    all_adj_mats = {}
+    all_preds = {}
+    all_inds = {}
+    all_ws = {}
+    all_gene_nms = {}
+    for chr in chrs:
+        if chr in ts_chrs: mats, inds, preds, adj_mats, ws, gene_nms = get_data(ts_cell_line, chr, 32)
+        else: mats, inds, preds, adj_mats, ws, gene_nms = get_data(tr_cell_line, chr, 32)
+        all_mats[f'chr{chr}']= mats
+        all_inds[f'chr{chr}']=inds
+        all_preds[f'chr{chr}']=preds
+        all_adj_mats[f'chr{chr}']=adj_mats
+        all_ws[f'chr{chr}']=ws
+        all_gene_nms[f'chr{chr}']=gene_nms
 
 
-    print(f'-----------Exp for chromosome: {chr} ---------------')
-    tr_mats, tr_inds, tr_preds, tr_adj_mats, tr_w, _ = get_data(train_cell_line, chr, n_features)
-    eval_mats, eval_inds, eval_preds, eval_adj_mats, eval_w, eval_gene_nms = get_data(test_cell_line, chr, n_features)
-
-    tr_w, val_w = train_test_split(tr_w, test_size=0.2, random_state=seed)
+    def get_chr_data(chr_number):
+        chr_nm = 'chr{}'.format(chr_number)
+        return all_mats[chr_nm], all_inds[chr_nm], all_preds[chr_nm], all_adj_mats[chr_nm], all_ws[chr_nm], all_gene_nms[chr_nm]
 
 
     # defining the model and loss function
     model = hic_model(in_channels=n_features, nb_embed=nb_embed, nb_heads=nb_heads, dropout=0.5)
     model = model.cuda(gpu)
-    criterion1 = MLoss(l_hparams[0], l_hparams[1], l_hparams[2]).cuda(gpu)  
+    criterion1 = MLoss(l_hparams[0], l_hparams[1], l_hparams[2]).cuda(gpu) 
 
 
 
     def validate_model(model):
         ##validating
         model.eval()
-
         val_losses = []
         val_corrs = []
-        for i in val_w:
-           
-            curr_ep = tr_mats[i].cuda(gpu)
-            curr_adj = tr_adj_mats[i].cuda(gpu)
-            curr_ind = tr_inds[i].cuda(gpu)
-            curr_pred = tr_preds[i].cuda(gpu)
 
-            output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
-            loss1 = criterion1(output, curr_pred.reshape(-1,1))
-            
-            loss_val = loss1
+        for chr in val_chrs:
+            val_mats, val_inds, val_preds, val_adj_mats, val_w, _  = get_chr_data(chr)
 
-            curr_ep = curr_ep.detach().cpu()
-            curr_adj = curr_adj.detach().cpu()
-            curr_ind = curr_ind.detach().cpu()
-            curr_pred = curr_pred.detach().cpu()
-            output = output.detach().cpu()
+            for i in val_w:
+               
+                curr_ep = val_mats[i].cuda(gpu)
+                curr_adj = val_adj_mats[i].cuda(gpu)
+                curr_ind = val_inds[i].cuda(gpu)
+                curr_pred = val_preds[i].cuda(gpu)
 
-            val_loss = loss_val.item()
+                output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
+                loss1 = criterion1(output, curr_pred.reshape(-1,1))
+                
+                loss_val = loss1
 
-            
-            torch.cuda.empty_cache()
-            val_losses.append(val_loss)
+                curr_ep = curr_ep.detach().cpu()
+                curr_adj = curr_adj.detach().cpu()
+                curr_ind = curr_ind.detach().cpu()
+                curr_pred = curr_pred.detach().cpu()
+                output = output.detach().cpu()
 
-            out_arr = output.squeeze().numpy()
-            pred_arr = curr_pred.numpy()
-            val_corrs.append(np.mean(np.corrcoef(out_arr, pred_arr)))
+                val_loss = loss_val.item()
+
+                
+                torch.cuda.empty_cache()
+                val_losses.append(val_loss)
+
+                out_arr = output.squeeze().numpy()
+                pred_arr = curr_pred.numpy()
+                val_corrs.append(np.mean(np.corrcoef(out_arr, pred_arr)))
 
         avg_val_loss = np.mean(val_losses)
         print(f'Val loss: {avg_val_loss:.4f} | correlation: {np.mean(val_corrs)}')
@@ -200,10 +222,9 @@ def ccl_exp(args):
 
 
 
-
-
+    ###### training ###########
     tr_l = []
-    model.train()
+    
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)   
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     prev_loss = 1e5
@@ -212,49 +233,53 @@ def ccl_exp(args):
     loss_vals = []
     best = 1e10
 
-    save_dir = f'ccl_saves/{event}/chr{chr}_saved_model'
+    save_dir = f'ccl_chrs_saves/{event}/{tr_cell_line}_saved_model'
     os.makedirs(save_dir, exist_ok=True)
     for epoch in range(epochs):        
         tr_loss = 0
         i = 0
-
         epoch_loss = 0
+        divider = 0
         
-        for i in tr_w:
-            optimizer.zero_grad()
+        model.train()
+        for chr in tr_chrs:
+            tr_mats, tr_inds, tr_preds, tr_adj_mats, tr_w, _  = get_chr_data(chr)
 
-            curr_ep = tr_mats[i].cuda(gpu)
-            curr_adj = tr_adj_mats[i].cuda(gpu)
-            curr_ind = tr_inds[i].cuda(gpu)
-            curr_pred = tr_preds[i].cuda(gpu)
+            for i in tr_w:
+                optimizer.zero_grad()
+                curr_ep = tr_mats[i].cuda(gpu)
+                curr_adj = tr_adj_mats[i].cuda(gpu)
+                curr_ind = tr_inds[i].cuda(gpu)
+                curr_pred = tr_preds[i].cuda(gpu)
 
 
-            output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
-            loss1 = criterion1(output, curr_pred.reshape(-1,1))
-            loss_train = loss1
-            
-            loss_train.backward()
-            optimizer.step()
-            
-            curr_ep = curr_ep.detach().cpu()
-            curr_adj = curr_adj.detach().cpu()
-            curr_ind = curr_ind.detach().cpu()
-            curr_pred = curr_pred.detach().cpu()
-            output = output.detach().cpu()
-            epoch_loss += loss_train.item()
+                output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
+                loss1 = criterion1(output, curr_pred.reshape(-1,1))
+                loss_train = loss1
+                
+                loss_train.backward()
+                optimizer.step()
+                
+                curr_ep = curr_ep.detach().cpu()
+                curr_adj = curr_adj.detach().cpu()
+                curr_ind = curr_ind.detach().cpu()
+                curr_pred = curr_pred.detach().cpu()
+                output = output.detach().cpu()
+                epoch_loss += loss_train.item()
 
-            out_arr = output.squeeze().numpy()
-            pred_arr = curr_pred.numpy()
+                out_arr = output.squeeze().numpy()
+                pred_arr = curr_pred.numpy()
+
+            divider += tr_w.shape[0]
 
         scheduler.step()
 
-        mean_ep_loss = epoch_loss/tr_w.shape[0]
+        mean_ep_loss = epoch_loss/divider
         print(f'\nEpoch: {epoch} | LR: {scheduler.get_last_lr()[0]:.4e} | train loss: {mean_ep_loss:.4f}')
-        
+
         val_l = validate_model(model)
         loss_vals.append(val_l)
-
-
+      
         tr_l.append(mean_ep_loss)
         torch.cuda.empty_cache()
 
@@ -273,12 +298,9 @@ def ccl_exp(args):
         for file in files:
             epoch_nb = int(file.split('/')[3].split('.')[0])
             if epoch_nb < best_epoch:
-                os.remove(file)
-
-        
+                os.remove(file)    
         
     print('------------------------------Training Ends-------------------------------')
-
 
 
 
@@ -290,61 +312,67 @@ def ccl_exp(args):
 
     # Restore best model
     print(f'Loading {best_epoch}th epoch')
-    model.load_state_dict(torch.load(f'{save_dir}/{best_epoch}.pkl'))  #, weights_only=True))
+    model.load_state_dict(torch.load(f'{save_dir}/{best_epoch}.pkl'))   ##, weights_only=True))
+        
 
-    ##testing
+
     model.eval()
-
-    corrs_lst = []
-    loss_lst = []
     test_loss = 0
     test_corr = 0
-    w_st = []
-    w_en = []
-    w_gene = []
 
-    print('\n---Testing---')
-    for i in eval_w:
-        print('-----------------window# {}-----------------'.format(i))
+    divider = 0
+    for chr in ts_chrs:
+        eval_mats, eval_inds, eval_preds, eval_adj_mats, eval_w, eval_gene_nms = get_chr_data(chr)
+        divider += len(eval_w)
 
-        
-        curr_ep = eval_mats[i].cuda(gpu)
-        curr_adj = eval_adj_mats[i].cuda(gpu)
-        curr_ind = eval_inds[i].cuda(gpu)
-        curr_pred = eval_preds[i].cuda(gpu)
-        
-        output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
-        print('Output: \n', output.squeeze())
-        print('True value: \n', curr_pred)
+        print(f'---------Testing for chromosome: {chr}-----------')
+        w_st = []
+        w_en = []
+        w_gene = []
+        corrs_lst = []
+        loss_lst = []
 
-        torch.cuda.empty_cache()
-        curr_ep = curr_ep.detach().cpu()
-        curr_adj = curr_adj.detach().cpu()
-        curr_ind = curr_ind.detach().cpu()
-        curr_pred = curr_pred.detach().cpu()
-        output = output.detach().cpu()
+        for i in eval_w:
+            print('-----------------window# {}-----------------'.format(i))
+            
+            curr_ep = eval_mats[i].cuda(gpu)
+            curr_adj = eval_adj_mats[i].cuda(gpu)
+            curr_ind = eval_inds[i].cuda(gpu)
+            curr_pred = eval_preds[i].cuda(gpu)
+            
+            output = model(curr_ep.reshape(1,n_features,-1), curr_adj, curr_ind)
+            print('Output: \n', output.squeeze())
+            print('True value: \n', curr_pred)
 
-        out_arr = output.squeeze().numpy()
-        pred_arr = curr_pred.numpy()
-        
-        out_arr = out_avg(pred_arr, out_arr)
-        curr_corr = np.mean(np.corrcoef(out_arr, pred_arr))
-        test_corr += curr_corr
-        corrs_lst.append(curr_corr)
+            torch.cuda.empty_cache()
+            curr_ep = curr_ep.detach().cpu()
+            curr_adj = curr_adj.detach().cpu()
+            curr_ind = curr_ind.detach().cpu()
+            curr_pred = curr_pred.detach().cpu()
+            output = output.detach().cpu()
 
-        print('Correlation: ', curr_corr)
-        w_st.append(i*window_size)
-        w_en.append((i+1)*window_size-1)
-        w_gene.append(eval_gene_nms[i])
+            out_arr = output.squeeze().numpy()
+            pred_arr = curr_pred.numpy()
+            
+            out_arr = out_avg(pred_arr, out_arr)
+            curr_corr = np.mean(np.corrcoef(out_arr, pred_arr))
+            if math.isnan(curr_corr): divider -= 1  
+            else: test_corr += curr_corr
+            corrs_lst.append(curr_corr)
+
+            print('Correlation: ', curr_corr)            
+
+            w_st.append(i*window_size)
+            w_en.append((i+1)*window_size-1)
+            w_gene.append(eval_gene_nms[i])
 
 
-    print('-----------------------------------------------------------------')
-    print('Mean test correlation: ', test_corr/len(eval_w))
-
-
-    corr_result = pd.DataFrame({'Start': w_st, 
+        corr_result = pd.DataFrame({'Start': w_st, 
                                 'End': w_en,
                                 'Correlation': corrs_lst, 
                                 'Gene': w_gene}, index=eval_w )
-    corr_result.sort_values(by='Correlation', inplace=True, ascending=False)
-    corr_result.to_csv(f'ccl_saves/{event}/chr{chr}_result.csv')
+        corr_result.sort_values(by='Correlation', inplace=True, ascending=False)
+        corr_result.to_csv(f'ccl_chrs_saves/{event}/chr{chr}_result.csv')
+
+    print('-----------------------------------------------------------------')
+    print('Mean test correlation: ', test_corr/divider)

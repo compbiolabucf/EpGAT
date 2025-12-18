@@ -197,10 +197,10 @@ def cchrs_exp(args):
                 
                 loss_val = loss1
 
-                curr_ep = val_mats[i].detach().cpu()
-                curr_adj = val_adj_mats[i].detach().cpu()
-                curr_ind = val_inds[i].detach().cpu()
-                curr_pred = val_preds[i].detach().cpu()
+                curr_ep = curr_ep.detach().cpu()
+                curr_adj = curr_adj.detach().cpu()
+                curr_ind = curr_ind.detach().cpu()
+                curr_pred = curr_pred.detach().cpu()
                 output = output.detach().cpu()
 
                 val_loss = loss_val.item()
@@ -257,10 +257,10 @@ def cchrs_exp(args):
                 loss_train.backward()
                 optimizer.step()
                 
-                curr_ep = tr_mats[i].detach().cpu()
-                curr_adj = tr_adj_mats[i].detach().cpu()
-                curr_ind = tr_inds[i].detach().cpu()
-                curr_pred = tr_preds[i].detach().cpu()
+                curr_ep = curr_ep.detach().cpu()
+                curr_adj = curr_adj.detach().cpu()
+                curr_ind = curr_ind.detach().cpu()
+                curr_pred = curr_pred.detach().cpu()
                 output = output.detach().cpu()
                 epoch_loss += loss_train.item()
 
@@ -342,10 +342,10 @@ def cchrs_exp(args):
             print('True value: \n', curr_pred)
 
             torch.cuda.empty_cache()
-            curr_ep = eval_mats[i].detach().cpu()
-            curr_adj = eval_adj_mats[i].detach().cpu()
-            curr_ind = eval_inds[i].detach().cpu()
-            curr_pred = eval_preds[i].detach().cpu()
+            curr_ep = curr_ep.detach().cpu()
+            curr_adj = curr_adj.detach().cpu()
+            curr_ind = curr_ind.detach().cpu()
+            curr_pred = curr_pred.detach().cpu()
             output = output.detach().cpu()
 
             out_arr = output.squeeze().numpy()
