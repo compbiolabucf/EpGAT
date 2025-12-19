@@ -222,7 +222,6 @@ def cchrs_exp(args):
 
     ###### training ###########
     tr_l = []
-    model.train()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)   
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     prev_loss = 1e5
@@ -239,6 +238,7 @@ def cchrs_exp(args):
         epoch_loss = 0
         divider = 0
         
+        model.train()
         for chr in tr_chrs:
             tr_mats, tr_inds, tr_preds, tr_adj_mats, tr_w, _  = get_chr_data(chr)
 

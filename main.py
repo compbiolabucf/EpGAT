@@ -1,7 +1,7 @@
 import argparse
 from cross_cell_lines_train import *
 from cross_chromosomes_train import *
-from cross_ccl_chr_train import *
+from cross_cell_lines_cross_chromosomes_train import *
 
 
 def main():

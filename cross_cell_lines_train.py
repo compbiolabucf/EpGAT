@@ -203,7 +203,6 @@ def ccl_exp(args):
 
 
     tr_l = []
-    model.train()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)   
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     prev_loss = 1e5
@@ -219,7 +218,7 @@ def ccl_exp(args):
         i = 0
 
         epoch_loss = 0
-        
+        model.train()
         for i in tr_w:
             optimizer.zero_grad()
 
