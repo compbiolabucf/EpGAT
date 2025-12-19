@@ -153,7 +153,7 @@ def ccl_exp(args):
 
 
     # defining the model and loss function
-    model = hic_model(in_channels=n_features, nb_embed=nb_embed, nb_heads=nb_heads, dropout=0.5)
+    model = hic_model(in_channels=n_features, nb_embed=nb_embed, nb_heads=nb_heads, dropout=dropout)
     model = model.cuda(gpu)
     criterion1 = MLoss(l_hparams[0], l_hparams[1], l_hparams[2]).cuda(gpu)  
 
