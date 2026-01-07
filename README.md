@@ -13,7 +13,7 @@ The python scripts inside [preprocess_data](https://github.com/compbiolabucf/EpG
 - HiC data: The HiC data containing chromosome contact matrices were also downloaded from publicly available ENCODE project website. Intact HiC matrix was downloaded for MCF7 cell line from Experiment ID: ENCSR660LPJ, File ID: ENCFF420JTA and for K562 cell line from Experiment ID: ENCSR479XDG, File ID: ENCFF621AIY. The HiC file contained contact matrices at different resolutions (10bp, 200bp, 1000bp, 5000bp etc). These matrices were already processed by removing contacts which had mapQ (mapping quality) value of less than 30. We extracted the matrices for 200bp resolution to be used in our pipeline. 
 - Post-transcriptional regulatory events: Two different post transcriptional regulatory events can be predicted by EpGAT- AS and APA. They were identified and quantified by customized pipelines developed by our lab [AS-Quant](https://github.com/compbiolabucf/AS-Quant) and [APA-Scan](https://github.com/compbiolabucf/APA-Scan), applied to RNA-seq data corresponding to the specific cell lines. The events were quantified in terms of Percent Spliced-In (PSI) for AS and Truncated Ratio (TR) for APA. These datasets were further preprocessed by 'preprocess_as_prediction_data.py' and 'preprocess_apa_prediction_data.py' scripts present inside [preprocess_data](https://github.com/compbiolabucf/EpGAT/tree/main/preprocess_data) folder to match the resolution and to make compatible for EpGAT application.
 
-The data directory before strating the training process, should look like following:
+The data directory before starting the training process, should look like following:
 - data
     - <cell_line1_name>
       - as_pred_data (containing quantified AS events for each chromosome)
