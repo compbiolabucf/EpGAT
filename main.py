@@ -43,7 +43,7 @@ def main():
         print(f'\n-------Cross chromosome exp, cell line: {args.cell_line}, event: {args.event}-------')
         print(f'train chrs: {args.train_chrs}, val chrs: {args.val_chrs}, test chrs: {args.test_chrs}')
         cchrs_exp(args)
-    elif args.exp_type == 'both':
+    elif args.exp_type == 'cross_chromosome_cross_cell_line':
         print(f'\n-------Cross chromosome cross cell line exp, event: {args.event}-------')
         print(f'train and val cell line: {args.train_cell_line}, test cell line: {args.test_cell_line}')
         print(f'train chrs: {args.train_chrs}, val chrs: {args.val_chrs}, test chrs: {args.test_chrs}')
